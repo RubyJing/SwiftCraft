@@ -6,14 +6,12 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.poi.excel.ExcelReader;
 import cn.hutool.poi.excel.ExcelUtil;
 import cn.hutool.poi.excel.ExcelWriter;
+import com.alibaba.excel.util.StringUtils;
 import com.alibaba.fastjson.JSON;
 import org.slf4j.Logger;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class IoConfigUtils {
@@ -46,34 +44,34 @@ public class IoConfigUtils {
 
         //读取数据
         List<List<Object>> datas = reader.read(1, reader.getRowCount());
-        new ArrayList<>();
-        if (CollUtil.isEmpty(datas)) {
+        if (isEmpty(datas)) {
             return BASE_PATH;
         }
         List<IoConfigEntity> entities = datas.stream().map(IoConfigEntity::new).collect(Collectors.toList());
 
         //读场站编码
         String stationCode = entities.get(0).getStation_code().toString();
-        Map<Integer, List<IoConfigEntity>> map = new HashMap<>();
+        // 按端口分组: key为端口号, value为该端口的所有点
+        Map<Integer, List<IoConfigEntity>> portMap = new HashMap<>();
         for (IoConfigEntity entity : entities) {
-            if (!map.containsKey(entity.getPort())) {
-                map.put(entity.getPort(), new ArrayList<>());
+            if (!portMap.containsKey(entity.getPort())) {
+                portMap.put(entity.getPort(), new ArrayList<>());
             }
-            map.get(entity.getPort()).add(entity);
+            portMap.get(entity.getPort()).add(entity);
         }
 
-        //标准io点，key为型号
+        // 标准io点map：key为model，value为该型号的所有点
         Map<String, List<StandardIoDTO>> standardIoMap = new HashMap<>();
-
-
-        //复制，得到 点表映射模板 - 输出 - {场站编码} - {port}.xlsx
+        // 得到 点表映射模板 - 输出 - {场站编码} - {port}.xlsx
         Map<Integer, String> fileMap = new HashMap<>();
-        //输出emqx json文件, 文件名: emqx - 输出 - {场站编码} - {port}.json
-        for (Map.Entry<Integer, List<IoConfigEntity>> entry : map.entrySet()) {
+
+        // 遍历端口
+        for (Map.Entry<Integer, List<IoConfigEntity>> entry : portMap.entrySet()) {
             Integer port = entry.getKey();
+
             //先创建文件
             String filePath = fileMap.get(port);
-            if (StrUtil.isEmpty(filePath)) {
+            if (StringUtils.isEmpty(filePath)) {
                 filePath = BASE_PATH + File.separator + "点表映射模板 - 输出 - " + stationCode + " - " + port + ".xlsx";
                 if (!FileUtil.exist(filePath)) {
                     FileUtil.copyFile(OUTPUT_TEMPLATE_PATH, filePath);
@@ -162,7 +160,7 @@ public class IoConfigUtils {
                 writer.close();
 
                 // 写入emqx json文件
-                String emqxJsonPath = BASE_PATH + File.separator + "emqx - 输出 - " + stationCode + " - " + port + ".json";
+                String emqxJsonPath = BASE_PATH + File.separator + "emqx-输出-" + stationCode + "-" + model + "-" + port + ".json";
                 File emqxJsonFile = FileUtil.touch(emqxJsonPath);
                 FileUtil.writeUtf8String(JSON.toJSONString(emqxJsonOutPuts), emqxJsonFile);
                 log.info("====> {}写入完成", entity.getDevice_code());
@@ -200,4 +198,14 @@ public class IoConfigUtils {
         put("遥控", "ykStart");
     }};
 
+
+    /**
+     * 集合是否为空
+     *
+     * @param collection 集合
+     * @return 是否为空
+     */
+    public static boolean isEmpty(Collection<?> collection) {
+        return collection == null || collection.isEmpty();
+    }
 }
