@@ -5,10 +5,10 @@ module com.zj.sc {
     requires easyexcel.core;
     requires lombok;
     requires cn.hutool;
-//    requires com.google.common;
+    requires com.google.common;
     requires fastjson;
     requires java.sql;
-//    requires xmlbeans;
+    requires xmlbeans;
 
     opens com.zj.sc.huarun;
     opens com.zj.sc to javafx.fxml,cn.hutool,fastjson;
