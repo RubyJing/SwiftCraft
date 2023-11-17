@@ -124,6 +124,7 @@ public class SwiftCraftApplication extends Application {
         // 在任务结束后的操作
         task.setOnFailed(e -> {
             // 隐藏进度条，显示反馈信息
+            task.getException().printStackTrace();
             progressBar.setVisible(false);
             System.out.println("任务执行失败！");
         });

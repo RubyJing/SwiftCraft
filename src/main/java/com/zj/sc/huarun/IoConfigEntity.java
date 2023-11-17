@@ -32,17 +32,17 @@ public class IoConfigEntity {
 
     public IoConfigEntity(List<Object> datas) {
         this.port = Integer.parseInt(datas.get(0) + "");
-        this.station_code = (String) datas.get(1);
-        this.device_code = (String) datas.get(2);
-        this.device_type = (String) datas.get(3);
-        this.time_unit = (String) datas.get(4);
-        this.region_com_id = (String) datas.get(5);
-        this.project_com_id = (String) datas.get(6);
-        this.maintenance_com_id = (String) datas.get(7);
-        this.manufacturer = (String) datas.get(8);
-        this.model = (String) datas.get(9);
-        this.line = (String) datas.get(10);
-        this.period = (String) datas.get(11);
+        this.station_code = String.valueOf(datas.get(1));
+        this.device_code = String.valueOf(datas.get(2));
+        this.device_type = String.valueOf(datas.get(3));
+        this.time_unit = String.valueOf(datas.get(4));
+        this.region_com_id = String.valueOf(datas.get(5));
+        this.project_com_id = String.valueOf(datas.get(6));
+        this.maintenance_com_id = String.valueOf(datas.get(7));
+        this.manufacturer = String.valueOf(datas.get(8));
+        this.model = String.valueOf(datas.get(9));
+        this.line = String.valueOf(datas.get(10));
+        this.period = String.valueOf(datas.get(11));
         this.ycStart = datas.size() > 12 ? convert(datas.get(12)) : 0;
         this.yxStart = datas.size() > 13 ? convert(datas.get(13)) : 0;
         this.ymStart = datas.size() > 14 ? convert(datas.get(14)) : 0;

@@ -6,11 +6,17 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.poi.excel.ExcelReader;
 import cn.hutool.poi.excel.ExcelUtil;
 import cn.hutool.poi.excel.ExcelWriter;
-import com.alibaba.excel.util.StringUtils;
 import com.alibaba.fastjson.JSON;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -25,7 +31,7 @@ public class IoConfigUtils {
     private static final String[] headers = new String[]{"group", "name", "address", "attribute", "type", "description", "precision", "decimal", "value"};
     private static final Logger log = org.slf4j.LoggerFactory.getLogger(IoConfigUtils.class);
 
-    public static String execute(String basePath) {
+    public static String execute(String basePath) throws Exception {
         if (basePath.endsWith(".xlsx")) {
             basePath = basePath.substring(0, basePath.lastIndexOf(".xlsx"));
         }
@@ -33,15 +39,16 @@ public class IoConfigUtils {
         String INPUT_PATH = BASE_PATH + ".xlsx";
         String OUTPUT_TEMPLATE_PATH = BASE_PATH + "_输出.xlsx";
 
-        // 复制一份输入文件，命名为：OUTPUT_TEMPLATE_PATH
-        if (FileUtil.exist(OUTPUT_TEMPLATE_PATH)) {
-            FileUtil.del(OUTPUT_TEMPLATE_PATH);
-        }
-        FileUtil.copyFile(INPUT_PATH, OUTPUT_TEMPLATE_PATH);
+        //先删除过去生成的数据
+        FileUtil.del(OUTPUT_TEMPLATE_PATH);
+        FileUtil.del(BASE_PATH);
+
+        // 创建输出文件.xlsx，并写入表头
+        createOutTemplateFile(OUTPUT_TEMPLATE_PATH);
+
 
         //先读input_path，从第一个sheet开始读起判定有几个端口，拷贝几个模板，并追加重命名
         ExcelReader reader = ExcelUtil.getReader(INPUT_PATH, 0);
-
         //读取数据
         List<List<Object>> datas = reader.read(1, reader.getRowCount());
         if (isEmpty(datas)) {
@@ -71,7 +78,7 @@ public class IoConfigUtils {
 
             //先创建文件
             String filePath = fileMap.get(port);
-            if (StringUtils.isEmpty(filePath)) {
+            if (StrUtil.isEmpty(filePath)) {
                 filePath = BASE_PATH + File.separator + "点表映射模板 - 输出 - " + stationCode + " - " + port + ".xlsx";
                 if (!FileUtil.exist(filePath)) {
                     FileUtil.copyFile(OUTPUT_TEMPLATE_PATH, filePath);
@@ -107,20 +114,14 @@ public class IoConfigUtils {
                 //还要再写几个点
                 outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "device_type", "Static", "STRING", entity.getDevice_type()));
                 outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "TimeUNIT", "Static", "STRING", entity.getTime_unit()));
-                outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "region_com_id", "Static", "STRING", entity.getRegion_com_id()));
-                outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "project_com_id", "Static", "STRING", entity.getProject_com_id()));
-                outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "maintenance_com_id", "Static", "STRING", entity.getMaintenance_com_id()));
+                outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "region_com_id", "Static", "STRING", getSingleQuotesString(entity.getRegion_com_id())));
+                outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "project_com_id", "Static", "STRING", getSingleQuotesString(entity.getProject_com_id())));
+                outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "maintenance_com_id", "Static", "STRING", getSingleQuotesString(entity.getMaintenance_com_id())));
                 outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "manufacturer", "Static", "STRING", entity.getManufacturer()));
-                // model是否有单引号，没有则加上单引号
-                String modelStr = entity.getModel();
-                if (!modelStr.startsWith("`") && !modelStr.endsWith("`")) {
-                    modelStr = "`" + modelStr + "`";
-                }
-                outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "model", "Static", "STRING", modelStr));
-                outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "line", "Static", "STRING", entity.getLine()));
-                outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "period", "Static", "STRING", entity.getPeriod()));
+                outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "model", "Static", "STRING", getSingleQuotesString(entity.getModel())));
+                outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "line", "Static", "STRING", getSingleQuotesString(entity.getLine())));
+                outputEntities.add(new IoOutputEntity(entity.getDevice_code(), "period", "Static", "STRING", getSingleQuotesString(entity.getPeriod())));
 
-                //将数据写入到表内
                 ExcelWriter writer = ExcelUtil.getWriter(filePath);
 
                 // 写入固定表头
@@ -169,7 +170,63 @@ public class IoConfigUtils {
         return BASE_PATH;
     }
 
-    public static void main(String[] args) {
+    private static void createOutTemplateFile(String OUTPUT_TEMPLATE_PATH) {
+        // 创建输出文件.xlsx，并写入表头
+        FileUtil.touch(OUTPUT_TEMPLATE_PATH);
+        // 创建一个新的 Excel 工作簿
+        // 创建一个新的 Excel 工作簿
+        Workbook workbook = new XSSFWorkbook();
+        try {
+            // 创建一个新的工作表
+            workbook.createSheet("sheet1");
+
+            // 将工作簿写入文件
+            try (FileOutputStream fileOut = new FileOutputStream(OUTPUT_TEMPLATE_PATH)) {
+                workbook.write(fileOut);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                workbook.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private static void createOutputFile(String content, String path) throws Exception {
+        try {
+            // 使用 Files.write 创建文件并写入内容
+            Path outputPath = Paths.get(path);
+            Files.write(outputPath, content.getBytes());
+
+            System.out.println("输出文件创建成功：" + path);
+        } catch (Exception e) {
+            // 文件创建失败，抛出异常
+            throw new Exception("无法创建输出文件：" + path, e);
+        }
+    }
+
+    private static boolean isFileEmpty(String filePath) {
+        long fileSize = Paths.get(filePath).toFile().length();
+        return fileSize == 0;
+    }
+
+    /**
+     * 获取单引号字符串
+     *
+     * @param value 值
+     * @return 单引号字符串
+     */
+    private static String getSingleQuotesString(String value) {
+        if (!value.startsWith("`") && !value.endsWith("`")) {
+            value = "`" + value + "`";
+        }
+        return value;
+    }
+
+    public static void main(String[] args) throws Exception {
         execute("D:\\data\\朝阳421321W04-2404-WT_输入.xlsx");
     }
 
